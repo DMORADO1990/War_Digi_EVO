@@ -1,0 +1,21 @@
+Lista TODO con Mejoras Pendientes
+1. Optimización de Canciones
+    Refinar aún más las rimas y métricas mediante iteraciones externas de generación y ajuste.
+    Mejorar el tono de las canciones para mostrar una transición clara en madurez desde Bebé hasta Mega.
+    Agregar efectos sonoros que acompañen las canciones basados en el hábitat del Digimon.
+
+2. Experiencia de Usuario
+    Ampliar la GUI para mostrar una vista previa de los textos y reproducir las canciones generadas.
+    Agregar opciones de estilo musical personalizables (épico, melódico, etc.).
+
+3. Multilingüe
+    Incluir soporte para traducción automática a más idiomas como francés, alemán y japonés.
+    Generar subtítulos sincronizados para las canciones en múltiples idiomas.
+
+4. Tecnologías Avanzadas
+    Entrenar perfiles de voz únicos para cada Digimon usando datos preexistentes.
+    Desarrollar modelos de composición musical que generen partituras junto con las canciones.
+
+5. Integración
+    Crear un flujo completo "end-to-end" que combine generación de texto, audio y traducción.
+    Usar el contenido generado en videojuegos o aplicaciones interactivas.
