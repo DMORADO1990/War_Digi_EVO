@@ -5,6 +5,7 @@ from tkinter import Tk, Label, Entry, Button
 
 from transformers import pipeline
 
+#Ejemplo/Test
 text_generator = pipeline("text-generation", model="EleutherAI/gpt-neo-2.7B")
 response = text_generator("Escribe una descripción creativa sobre un Digimon llamado Greymon:", max_length=50)
 print(response)
@@ -12,19 +13,20 @@ print(response)
 # === Función para generar canciones ===
 def generate_song_text(digimon_name, model_name="EleutherAI/gpt-neo-2.7B"):
     """
-    Genera el texto de una canción original basada en el Digimon usando Hugging Face.
+    Genera el texto de una canción original basada en el Digimon usando un modelo seleccionado.
     """
     text_generator = pipeline("text-generation", model=model_name)
     prompt = f"""
-    Eres un compositor profesional y creativo. Crea una canción inspirada en el Digimon {digimon_name}.
+    Eres un compositor profesional y creativo. Crea una canción inspirada en el digimon {digimon_name}.
     La canción debe incluir:
-    - Versos, coros y un puente.
-    - Rimas sofisticadas y métricas refinadas.
-    - Un tema que refleje la personalidad, habilidades y hábitat del Digimon.
-    Usa un estilo épico y atractivo, adecuado para el mundo de los Digimon.
+    - Tags para [] marcar distintas secciones.    
+    - Rimas sofisticadas y métricas musicales refinadas.
+    - Un tema que describa emocionalmente la personalidad, habilidades y hábitat del digimon.
+    - Gran energia, espiritu y sentimiento de forma que el resultado sea de exepcional calidad.
+    Elige un estilo basado en la letra y ademas escoge un tiltulo acorde para la misma.
     """
     try:
-        response = text_generator(prompt, max_length=300, num_return_sequences=1)
+        response = text_generator(prompt, max_length=3000, num_return_sequences=1)
         return response[0]["generated_text"].strip()
     except Exception as e:
         print(f"Error generando canción para {digimon_name}: {e}")
@@ -121,20 +123,23 @@ def gui():
 
 # === Punto de entrada principal ===
 if __name__ == "__main__":
-    print("¿Deseas usar el generador en modo interactivo (terminal) o GUI?")
-    mode = input("Escribe 'terminal' para terminal o 'gui' para usar la interfaz gráfica: ").strip().lower()
+    print("Modo de uso"
+          "1-In Terminal"
+          "2-On GUI"
+          "")
+    mode = input("Selecciona: ").strip().lower()
 
-    if mode == "gui":
+    if mode == "2":
         gui()
     else:
-        print("Bienvenido al Generador de Canciones de Digimon")
-        input_names = input("Por favor, ingresa los nombres de los Digimon separados por comas: ").split(",")
+        print("Bienvenido")
+        input_names = input("Ingrese el nombres de Digimon seleccionado: ").split(",")
         input_names = [name.strip() for name in input_names if name.strip()]
 
         if not input_names:
-            print("No se proporcionaron nombres válidos. Por favor, inténtalo nuevamente.")
+            print("No se proporcionaron nombres válidos.")
         else:
-            print("\nProcesando, esto puede tomar unos momentos dependiendo del número de Digimon...\n")
+            print("\nProcesando, esto puede tomar unos momentos...\n")
             results = generate_digimon_songs(input_names)
             save_results_to_file(results)
 
