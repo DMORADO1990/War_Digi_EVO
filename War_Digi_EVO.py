@@ -5,6 +5,8 @@ from transformers import pipeline
 from tqdm import tqdm  # Para mostrar progreso visual durante la generación
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget
 
+# 22959000-ext27067
+
 prominent_languages = ["English", "Mandarin Chinese", "Spanish", "Hindi", "Arabic",
                        "French", "Bengali", "Portuguese", "Russian", "Japanese"]
 
@@ -56,6 +58,7 @@ class Lyric:
 
 # === Clase Digimon ===
 
+# noinspection PyInterpreter
 class Digimon:
     def __init__(self, name):
         #Inicializa objeto empezando por nombre Digi.
