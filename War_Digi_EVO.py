@@ -1,323 +1,275 @@
-import sys
-import json
-import tensorflow as tf
-from transformers import pipeline
-from tqdm import tqdm  # Para mostrar progreso visual durante la generación
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget
-
-# 22959000-ext27067
-
-prominent_languages = ["English", "Mandarin Chinese", "Spanish", "Hindi", "Arabic",
-                       "French", "Bengali", "Portuguese", "Russian", "Japanese"]
-
 # === Función para generar canciones ===
-# Name convention
+# Convenciones de nombres
 #   Song    ->   Sound, music, etc
-#   Song    ->   Sound, music, etc
-#   Lyric   ->   text of song
-#   Desc    ->   descripted
-#   Name    ->   Prompt from user
+#   Lyric   ->   Text of the song
+#   Desc    ->   Description
+#   Name    ->   Prompt from the user
 
-# App flow
-# From Name->Desc
-# From Desc->LDesc
-# From LDesc->Lyric
-# From Lyric->Title
-# From Lyric->Style
-# From Lyric->Song
-# Docs out JSON Name, Language, Desc, Song, Folder with mp3
+# Flujo de la aplicación:
+# - De Name -> Desc
+# - De Desc -> LDesc
+# - De LDesc -> Lyric
+# - De Lyric -> Title
+# - De Lyric -> Style
+# - De Lyric -> Song
+# - Genera archivo JSON con Name, Language, Desc, Song y carpeta con MP3
+
+import json
+import torch
+import tensorflow as tf
+from pathlib import Path
+from PyQt5.QtWidgets import QApplication, QLabel, QLineEdit, QMainWindow, QPushButton, QVBoxLayout, QWidget
+from transformers import pipeline
+
+# ---------------- Constants ----------------
+SUPPORTED_LANGUAGES = [  # A list of supported languages for the application
+    "English", "Mandarin Chinese", "Spanish", "Hindi", "Arabic",
+    "French", "Bengali", "Portuguese", "Russian", "Japanese"
+]
+
+# Constantes para prompts comunes
+TITLE_PROMPT_TEMPLATE = (
+    "Actúa como un especialista en producción musical y branding. Considera la siguiente descripción de un álbum: "
+    "'{description}'. Produce una lista de 5 opciones creativas y únicas que podrían ser utilizadas como título "
+    "del álbum. Las opciones deben ser únicas, inspiradoras y provocar curiosidad."
+    "\n\nEjemplo de salida:\n"
+    "1. El Renacimiento del Fénix\n"
+    "2. Ecos de la Eternidad\n"
+    "3. Fragmentos de un Sueño\n"
+)
+
+COVER_PROMPT_TEMPLATE = (
+    "Eres un ilustrador y diseñador gráfico especializado en portadas de álbumes. Basándote en esta descripción del álbum: "
+    "'{description}', genera 5 prompts detallados diseñados para modelos txt2img. Los prompts deben enfocarse en "
+    "colores, temas visuales, emociones, texturas y estilos artísticos específicos para garantizar resultados impresionantes."
+    "\n\nEjemplo de salida:\n"
+    "- Un paisaje surrealista al anochecer con tonos púrpuras y dorados, un fénix renaciendo de las cenizas al fondo.\n"
+    "- Un mundo abstracto inspirado en el arte impresionista con colores vibrantes y formas fluidas."
+)
+
+# Constantes para prompts comunes
+
+TITLE_PROMPT_TEMPLATE = (
+    "Actúa como un especialista en producción musical y branding. Considera la siguiente descripción de un álbum: "
+    "'{description}'. Produce una lista de 5 opciones creativas y únicas que podrían ser utilizadas como título "
+    "del álbum. Las opciones deben ser únicas, inspiradoras y provocar curiosidad."
+    "\n\nEjemplo de salida:\n"
+    "1. El Renacimiento del Fénix\n"
+    "2. Ecos de la Eternidad\n"
+    "3. Fragmentos de un Sueño\n"
+)
+
+WINDOW_TITLE = "Digimon Song Generator"  # Introducción de constante
+
 
 # === Clase Lyrica ===
 
 class Lyric:
+    EMPTY_STRING = ""
 
-    def __init__(self, text, based, singer, name, style, song_filename, handle):
+    def __init__(self, text: str, singer: str, is_based_on: bool,
+                 name: str = EMPTY_STRING, style: str = EMPTY_STRING,
+                 song_filename: str = EMPTY_STRING):
         self.text = text
-        self.based = based
         self.singer = singer
+        self.is_based_on = is_based_on
         self.name = name
         self.style = style
         self.song_filename = song_filename
-        self.handle = handle
-
-
-    def generate_song_from_lyrics(self):
-        #Convierte el texto de la canción en audio utilizando un modelo text-to-speech.
-        model_name = "suno/bark-small"
-        text_to_speech = pipeline("text-to-speech", model = model_name)
-        try:
-            result = text_to_speech(self.text)
-            with open(file = self.handle, pathlike = self.song_filename, mode = "wr") as f:
-                f.write(result["audio"])
-            print("Archivo de audio guardado como"+self.song_filename)
-            return result
-        except Exception as e:
-            print("Error creating audio: "+str(e))
-            return None
-
-
-# === Clase Digimon ===
-
-# noinspection PyInterpreter
-class Digimon:
-    def __init__(self, name):
-        #Inicializa objeto empezando por nombre Digi.
-        self.name = name
-        self.evol_list = self.generate_evo_list()
-        self.descriptions = self.generate_desc_for_each_name()
-        self.lyrics = self.generate_lyrics_for_each_desc()
-
-    def generate_evo_list(self):
-        """
-        Generate a plausible and AI-generated evolution line for a given Digimon name.
-
-        Parameters:
-        digimon_name (str): The name of the Digimon.
-
-        Returns:
-        list: A list representing an AI-generated evolution line for the Digimon.
-        """
-        model_name = "Helsinki-NLP/opus-mt-en-es"
-        # Pre-trained text generation model for AI (simulating this step with a mock)
-        text_generator = pipeline("text-generation", model=model_name)
-
-        # Prompt to guide AI generation
-        prompt = "Generate the complete evolution line for the Digimon {name}."
-
-        # AI generates response
-        ai_response = text_generator(prompt, max_length=100, num_return_sequences=1)
-        evolution_text = ai_response[0]["generated_text"]
-
-        # Parse the response into a list of evolution stages (simple splitting for this example)
-        evolution_line = [stage.strip() for stage in evolution_text.split(",")]
-
-        return evolution_line
-
-    def generate_desc_for_each_name(self):
-        """
-        Generate creative AI-generated descriptions for a list of Digimon names.
-        Parameters:
-        digimon_list (list): A list of Digimon names.
-        Returns:
-        dict: A dictionary with each Digimon name as the key and its description as the value.
-        """
-        model_name = "gpt-2"
-        try:
-            # Pre-trained text generation model for AI
-            text_generator = pipeline("text-generation", model=model_name)  # Example: GPT-2 model
-            # Dictionary to store results
-            descriptions = {}
-            translations = {}
-            # Loop through the list of Digimon names
-            for name in self.evol_list:
-                for language in prominent_languages:
-                    # Prompt for generating the description
-                    prompt = """
-                    You are a professional and creative composer. Create a description inspired by the Digimon {name}.
-                    The description include:
-                    - A catchy title.
-                    - Tags to [mark different sections].
-                    - Sophisticated rhymes and refined musical metrics.
-                    - A theme that emotionally describes the personality, skills, and habitat of the Digimon.
-                    - Great energy, spirit, and feeling, resulting in exceptional quality.
-                    """.format(name=name)
-                # AI generates response
-                    ai_response = text_generator(prompt, max_length=3000, num_return_sequences=1)
-                    description = ai_response[0]["generated_text"].strip()
-                    translations[language] = description
-                # Add the description to the dictionary
-                descriptions[name] = translations
-            return descriptions
-        except Exception as e:
-            print("Error generating descriptions: "+e.__str__())
-            return {"Error": "Could not generate descriptions for the provided Digimon names."}
-
-    def generate_lyrics_for_each_desc(self):
-        """
-        Recorre self.descriptions y genera un objeto de canción para cada Digimon, almacenándolo en self.lyrics.
-        Cada canción incluye título, autor, estilo, letra, y un identificador único.
-        """
-        model_name = "gpt-2"
-        try:
-            lyrics = {} # Placeholder lyrics
-
-            # Pre-trained text generation model for AI
-            text_generator = pipeline("text-generation", model=model_name)
-            for author in ["Observador External" ,"El Digimon" ,"El Tamer"]:
-                # Loop through all descriptions in self.descriptions
-                for name, language in self.descriptions.items():
-                    # Prompt for generating the song
-                    prompt = ("Eres un compositor profesional y creativo. Crea una canción inspirada en el Digimon" +
-                    digimon_name + ".asándote en la descripción: " + self.descriptions[self.name, self.language] +
-                    "   La canción debe incluir" +
-                    "   -La perspectiva de ser cantada por " + {author} +
-                    "   -Tags para [marcar distintas secciones]" +
-                    "   -Rimas sofisticadas y métricas musicales refinadas." +
-                    "   -Un tema que describa emocionalmente la personalidad, habilidades y hábitat del Digimon." +
-                    "   - Gran energía, espíritu y sentimiento de forma que el resultado sea de excepcional calidad." +
-                    "   - Puede ser una cancion cantada por el autor desde su perspectiva cultural o un relato de sus aventuras o cualquier otro" +
-                    "   - Asegura que el estilo esta acorde con los top 10 exitos del mundo del ultimo ano" +
-                    "   - La cancion misma deberia reflejar la madures amocional y intereses acordes a el nivel del digimon." +
-                    " Ejem: para un digimon nivel BB se esperaria una cancion muy infantil, llena de inocencia." +
-                    " Mientras que la cancion de un Mega deberia sonar llena de sabiduria en un tomo mas ancestral donde se denote la experiencia y el poder" +
-                    " No debera utilizar info propietarioa o con derecho de autor. Esto incluye el nombre del digimon"+
-                    " mismo y sus tecnicas. Todo deberia ser muy subjetivo, emocional y elegante." )
-                    try:
-                        # Generate song content
-                        response = text_generator(prompt, max_length=500, num_return_sequences=1)
-                        generated_text = response[0]["generated_text"].strip()
-                        lyric_tx = generated_text
-
-                        response = text_generator("provide a title for song {lyric_tx}", max_length=500, num_return_sequences=1)
-                        generated_text = response[0]["generated_text"].strip()
-                        title = generated_text
-
-                        response = text_generator(f"""
-                        provide a style for song {lyric_tx}, based on {digimon_name} and sang by singer {author} as
-                        python coma separated list.
-                        -Make sure the selected style match current lyric, 
-                        -Make sure the selected style with one of 50 top songs on last 6 months
-                        -Make sure not tu use any propietary info
-                        -Always add: male singer, polished production, energetic, sentimental, epic chorus, emotional, great vocals
-                        """,
-                        max_length=500,
-                        num_return_sequences=1)
-
-                        generated_text = response[0]["generated_text"].strip()
-                        style = generated_text
-
-
-                        dir = f"{name.lower()}//{author.lower()}//{title.lower()}({style})"
-
-                        # Create a song object and store it in self.lyrics
-                        song_object = Lyric(lyric_tx, name, author, title, style, dir)
-                        lyrics[name][language][author] = song_object
-
-                    except Exception as inner_exception:
-                        print(f"Error generando canción para {digimon_name}: {inner_exception}")
-        except Exception as e:
-            print(f"Error inicializando el modelo: {e}")
+        self.song_handle = self.EMPTY_STRING
 
 # === Clase Album ===
 
 class Album:
+    AI_MODEL_NAME = "EleutherAI/gpt-neo-2.7B"
+    JSON_FILE_PATH = "digimon_albums.json"
     def __init__(self, name):
-        self.content = []
-        self.name = self.create_name_from_desc()
-        self.desc = self.create_desc_from_lyrics()
-        self.cover = self.create_cover_from_desc()
-        self.dir = "digimon_albums.json"
-
-    def save_album_to_json(self):
-        #Guarda las canciones generadas en un archivo JSON.
-        try:
-            with open(self.dir, "w", encoding = "utf-8") as file:
-                json.dump(self, self.dir, ensure_ascii = False, indent = 4)
-            print("\nCanciones guardadas exitosamente en el archivo {filename}.")
-        except Exception as e:
-            print("Error al guardar los resultados: {e}")
-
-    def add_lyrics_to_album(self ,lyrics):
+        self.name = name
+        self.content = []  # Lista de letras de canciones
+        self.description = None  # Descripción general del álbum
+        self.cover_options = []  # Opciones generadas para la portada
+        self.title_options = []  # Opciones generadas para el título
+    def generate_album_titles(self):
         """
-        Añade las letras de canciones al álbum.
+        Genera 5 títulos creativos para el álbum basado en su descripción.
         """
-        self.content.append(lyrics)
+        if not self._validate_description():
+            return []
 
-    def create_name_from_desc(self):
+        prompt = TITLE_PROMPT_TEMPLATE.format(description=self.description)
+        self.title_options = self._generate_ai_responses(prompt, max_length=150)[:5]
+        return self.title_options
+    def generate_cover_prompts(self):
         """
-            Genera una lista de nombres para el álbum basada en su contenido utilizando un modelo AI.
+        Genera 5 prompts detallados para la creación de portadas utilizando modelos txt2img.
         """
-        model_name = "EleutherAI/gpt-neo-2.7B"
-        prompt = """
-        Eres un experto en producción musical. Proporciona al menos 5 opciones creativas para el título de un álbum
-        basado en la descripción: '{self.desc}'. Asegúrate de no usar ningún lenguaje propietario de la franquicia.
-        """
-        try:
-            # Generate text using the AI model
-            text_generator = pipeline("text-generation", model=model_name)
-            response = text_generator(prompt, max_length=50, num_return_sequences=1)
-            generated_text = response[0]["generated_text"].strip()
+        if not self._validate_description():
+            return ["Descripción vacía."]
 
-            # Process the response into a list of names
-            titles = [title.strip() for title in generated_text.split("\n") if title.strip()]
-            return titles[:5]  # Return only the first 5 options
-        except Exception as e:
-            print("Error generando nombres para el álbum: {e}")
-            return ["Error al generar nombres para el álbum."]
-
-    def create_cover_from_desc(self):
+        prompt = COVER_PROMPT_TEMPLATE.format(description=self.description)
+        self.cover_options = self._generate_ai_responses(prompt, max_length=350)[:5]
+        return self.cover_options
+    def generate_description(self):
         """
-        Crea cinco opciones detalladas para la portada del álbum optimizadas para modelos txt2img, basadas en su descripción.
+        Genera una descripción inspiradora y rica basada en las canciones incluidas en el álbum.
         """
-        model_name = "EleutherAI/gpt-neo-2.7B"
-        if not self.desc:
-            return ["No se puede generar una portada porque la descripción del álbum está vacía."]
-
-        # Enhanced prompt tailored for txt2img models
-        prompt = """
-        Eres un experto en diseño visual y creación de arte para portadas de álbumes. Basándote en la siguiente descripción: '{self.desc}', 
-        proporciona cinco prompts detallados adecuados para modelos txt2img que generen imágenes:
-        """
-
-        try:
-            # Generate text using the AI model
-            text_generator = pipeline("text-generation", model=model_name)
-            response = text_generator(prompt, max_length=1000, num_return_sequences=1)
-            generated_prompts = response[0]["generated_text"].strip()
-
-            # Process the AI response to extract five distinct cover prompts
-            cover_prompts = [prompt.strip() for prompt in generated_prompts.split("\n") if prompt.strip()]
-            return cover_prompts[:5]  # Return only the first 5 options
-        except Exception as e:
-            print("Error generando la portada "+self.name+": +"+e.__str__())
-            return ["Error al generar prompts"]
-
-    def create_desc_from_lyrics(self):
-        """
-        Genera una descripción del álbum basada en su contenido utilizando un modelo AI.
-        """
-        model_name = "EleutherAI/gpt-neo-2.7B"
-
         if not self.content:
-            return "El álbum no contiene canciones."
-        else:
-            generated_desc = []
-            desc = {}
-            for song in self.content:
-                # Improved prompt for generating the album description
-                prompt = (  "Eres un experto en producción musical y en escribir críticas apasionantes sobre música." +
-                            "Proporciona una descripción rica y emocionante para un álbum titulado" +
-                            self.name + ", basado en las siguientes ideas que representanel orden, la vida y la" +
-                            "historia del digimon" + self.content.__str__() + "Asegúrate de que no incluya lenguaje" +
-                            "propietario de ninguna franquicia.")
+            self.description = "El álbum no contiene canciones."
+            return self.description
+
+        formatted_songs = "\n".join([f"- {song}" for song in self.content])
+        prompt = (
+            f"Eres un crítico musical renombrado y escritor creativo. Imagina que estás escribiendo una descripción apasionante para un álbum "
+            f"titulado '{self.name}'. Este álbum contiene las siguientes canciones:\n"
+            f"{formatted_songs}\n\n"
+            "Escribe una descripción rica y evocadora que capte la esencia del álbum, sus emociones y su narrativa. Usa un lenguaje poético, "
+            "apasionado y altamente descriptivo. Evita usar lenguaje genérico o referencias a propiedades protegidas como nombres de franquicias."
+            "\n\nEjemplo de descripción:\n"
+            "Este álbum transporta al oyente a un viaje emocional a través del tiempo, explorando temas de resiliencia, renacimiento y nostalgia. "
+            "Cada canción entreteje una narrativa íntima que resuena profundamente en el alma."
+        )
+        descriptions = self._generate_ai_responses(prompt, max_length=300)
+        self.description = descriptions[0] if descriptions else "Descripción no generada."
+        return self.description
+    def _validate_description(self):
+        """
+        Valida que la descripción esté presente.
+        """
+        if not self.description:
+            print("Descripción ausente. No se puede proceder.")
+            return False
+        return True
+    def _generate_ai_responses(self, prompt, max_length=50, num_return_sequences=1):
+        """
+        Función auxiliar para interactuar con el modelo AI y devolver respuestas procesadas.
+        """
         try:
-            # Generate text using the AI model
-            text_generator = pipeline("text-generation", model_name)
-            response = text_generator(prompt, max_length=3000, num_return_sequences=5)
-            generated_desc = response[0]["generated_text"].strip()
-            # Assign the generated description to the
-            desc = desc + generated_desc
-            return desc
+            text_generator = pipeline("text-generation", model=self.AI_MODEL_NAME)
+            responses = text_generator(prompt, max_length=max_length, num_return_sequences=num_return_sequences)
+            return [res["generated_text"].strip() for res in responses]
         except Exception as e:
-            print("Error album descripción "+self.name+": "+e)
-"""
-# === Interfaz Gráfica (QMainWindow) ===
+            print(f"Error al generar respuesta con AI: {e}")
+            return []
+
+# === Clase Digimon ===
+
+class Digimon:
+                AI_MODEL_NAME = "EleutherAI/gpt-neo-125M"  # Constante para el modelo
+                EVOLUTION_PROMPT_TEMPLATE = (
+                    "Generate a detailed and plausible evolutionary progression for the "
+                    "Digimon '{name}'. Include all stages from Rookie to Mega."
+                )
+                DESCRIPTION_PROMPT_TEMPLATE = (
+                    "You are a creative storyteller, writing vivid descriptions for fictional creatures. "
+                    "Describe the Digimon '{name}' in detail, including:\n"
+                    "- Its physical appearance and unique traits.\n"
+                    "- Its personality and behavior.\n"
+                    "- The special powers and abilities it possesses.\n"
+                    "Write in an engaging and inspiring tone suitable for fans of fantasy stories."
+                )
+
+                def __init__(self, name):
+                    """Inicializa el objeto Digimon con su nombre, lista de evoluciones y descripciones."""
+                    self.name = name
+                    self.evolution_list = self._generate_evolutions()
+                    self.descriptions = self._generate_stage_descriptions()
+                    self.lyrics = {}
+
+                def _create_text_generator(self):
+                    """Inicializa y devuelve un generador de texto."""
+                    from transformers import pipeline
+                    try:
+                        return pipeline("text-generation", model=self.AI_MODEL_NAME)
+                    except Exception as e:
+                        print(f"Error initializing text generator: {e}")
+                        return None
+
+                def _generate_ai_text_responses(self, prompt, max_length=100, num_return_sequences=1):
+                    """Genera texto utilizando el modelo AI."""
+                    generator = self._create_text_generator()
+                    if not generator:
+                        return None  # Evita lanzar excepciones si el modelo no se inicializa
+                    try:
+                        response = generator(prompt, max_length=max_length, num_return_sequences=num_return_sequences)
+                        return response
+                    except Exception as e:
+                        print(f"Error generating AI response: {e}")
+                        return None
+
+                def _generate_evolutions(self):
+                    """Genera la lista de evoluciones para el Digimon basado en IA."""
+                    prompt = self.EVOLUTION_PROMPT_TEMPLATE.format(name=self.name)
+                    ai_response = self._generate_ai_text_responses(prompt, max_length=100, num_return_sequences=1)
+                    if not ai_response:
+                        return []  # Retornar vacío si no se pudo generar respuesta
+                    return [stage.strip() for stage in ai_response[0]["generated_text"].split(",") if stage.strip()]
+
+                def _generate_stage_descriptions(self):
+                    """Genera descripciones para cada etapa de evolución del Digimon."""
+                    descriptions = {}
+                    for digimon_name in self.evolution_list:
+                        descriptions[digimon_name] = self._generate_description(digimon_name)
+                    return descriptions
+
+                def _generate_description(self, digimon_name):
+                    """Genera la descripción para un único nombre de Digimon."""
+                    prompt = self.DESCRIPTION_PROMPT_TEMPLATE.format(name=digimon_name)
+                    ai_response = self._generate_ai_text_responses(prompt, max_length=250, num_return_sequences=1)
+                    if not ai_response:
+                        return "Description could not be generated."
+                    return ai_response[0]["generated_text"].strip()
+
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setup_main_window()
+
+    def setup_main_window(self):  # Extracción de setup para simplificar __init__
+        """Configura la ventana principal y sus elementos."""
+        self.setWindowTitle("Ejemplo PyQt5")
+        self.setGeometry(100, 100, 400, 300)
+
+        # Crear widgets
+        self.label = QLabel("¡Hola, PyQt5!", self)
+        self.line_edit = QLineEdit(self)
+        self.button = QPushButton("Presionar", self)
+        self.button.clicked.connect(self.on_button_click)  # Conexión de evento
+
+        # Configurar layout
+        layout = QVBoxLayout()
+        layout.addWidget(self.label)
+        layout.addWidget(self.line_edit)
+        layout.addWidget(self.button)
+
+        # Configuración del contenedor principal
+        container = QWidget()
+        container.setLayout(layout)
+        self.setCentralWidget(container)
+
+    def on_button_click(self):
+        """Actualiza el texto del label según la entrada del usuario."""
+        text = self.line_edit.text()
+        self.label.setText(f"Hola, {text}!")
+
 class DigimonApp(QMainWindow):
     def __init__(self):
-        QMainWindow.__init__(self)
-        self.setWindowTitle("Generador de Canciones y Descripciones de Digimon")
-        self.initUI()
-    def initUI(self):
+        super().__init__()
+        self.setWindowTitle(WINDOW_TITLE)
+        self.setup_ui()
+
+    def setup_ui(self):
+        """Configura la interfaz gráfica de usuario."""
         layout = QVBoxLayout()
 
-        self.label = QLabel("Ingrese los nombres de los Digimon separados por comas:")
-        layout.addWidget(self.label)
+        self.instruction_label = QLabel("Enter Digimon names separated by commas:")
+        layout.addWidget(self.instruction_label)
 
         self.input_field = QLineEdit()
         layout.addWidget(self.input_field)
 
-        self.generate_button = QPushButton("Generar Canciones")
-        self.generate_button.clicked.connect(self.generate)
+        self.generate_button = QPushButton("Generate Songs")
+        self.generate_button.clicked.connect(self.generate_songs)
         layout.addWidget(self.generate_button)
 
         self.result_label = QLabel("")
@@ -327,17 +279,26 @@ class DigimonApp(QMainWindow):
         container.setLayout(layout)
         self.setCentralWidget(container)
 
-    def generate(self):
-        names = self.input_field.text().split(",")
-        names = [name.strip() for name in names if name.strip()]
-        if not names:
-            self.result_label.setText("No se proporcionaron nombres válidos.")
+    def generate_songs(self):
+        """Genera canciones basadas en los nombres de los Digimon ingresados."""
+        digimon_names = self.get_valid_digimon_names(self.input_field.text())
+
+        if not digimon_names:
+            self.result_label.setText("No valid names were provided.")
         else:
-            #results = generate_digimon_songs(names)
-            #save_results_to_file(results)
-            self.result_label.setText("¡Canciones y descripciones generadas y guardadas!")
-"""
-# Example of how to use the class
+            # Aquí podría ir la lógica de generación
+            # Por ejemplo:
+            # results = generate_digimon_songs(digimon_names)
+            # save_results_to_file(results)
+            self.result_label.setText("Songs and descriptions generated and saved!")
+
+    @staticmethod
+    def get_valid_digimon_names(input_text):
+        """Procesa los nombres de Digimon ingresados y devuelve una lista limpia."""
+        return [name.strip() for name in input_text.split(",") if name.strip()]
+
 if __name__ == "__main__":
-    digimon_name = input("Enter the Digimon's name: ")
-    digimon = Digimon(digimon_name)
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec())
